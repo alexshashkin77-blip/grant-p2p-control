@@ -1,0 +1,10 @@
+{
+  "name": "grant-p2p-control",
+  "version": "0.1.0",
+  "description": "Grant-funded purchase-to-pay prototype with budget control and rule-based accounting",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/engine.test.js"
+  },
+  "license": "MIT"
+}

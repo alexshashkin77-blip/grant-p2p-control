@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grant P2P Control</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --ink: #1d2433; --muted: #667085; --line: #e3e6ec;
+    --accent: #1f6feb; --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e; --chip: #eef2f7;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+  header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 14px 20px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  header .spacer { flex: 1; }
+  nav { display: flex; gap: 4px; padding: 10px 20px 0; flex-wrap: wrap; }
+  nav button { border: 1px solid var(--line); border-bottom: none; background: #eceff3; padding: 8px 14px; border-radius: 8px 8px 0 0; cursor: pointer; font: inherit; color: var(--ink); }
+  nav button.active { background: var(--panel); font-weight: 600; }
+  main { padding: 0 20px 40px; }
+  section.tab { display: none; background: var(--panel); border: 1px solid var(--line); border-radius: 0 8px 8px 8px; padding: 18px; }
+  section.tab.active { display: block; }
+  h2 { font-size: 15px; margin: 18px 0 8px; } h2:first-child { margin-top: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  input, select { font: inherit; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: #fff; }
+  button.btn { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button.btn.ghost { background: #fff; color: var(--accent); }
+  button.btn.danger { border-color: var(--bad); background: #fff; color: var(--bad); }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; background: #fafbfc; white-space: nowrap; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 99px; background: var(--chip); font-size: 12px; white-space: nowrap; }
+  .s-DRAFT { background: #eef2f7; } .s-SUBMITTED { background: #fff4d6; color: var(--warn); }
+  .s-APPROVED { background: #dbeafe; color: #1e4fa8; } .s-RECEIVED, .s-INVOICED { background: #e9e3ff; color: #5a32a3; }
+  .s-PAID { background: #dafbe1; color: var(--ok); } .s-REJECTED { background: #ffe1e1; color: var(--bad); }
+  .msg { margin: 10px 0; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+  .msg.err { background: #ffebe9; color: var(--bad); } .msg.warn { background: #fff8c5; color: var(--warn); } .msg.ok { background: #dafbe1; color: var(--ok); }
+  .bar { height: 8px; background: #eef2f7; border-radius: 4px; overflow: hidden; display: flex; min-width: 120px; }
+  .bar span { display: block; height: 100%; }
+  .b-act { background: #1f6feb; } .b-com { background: #79a8f7; } .b-pen { background: #f2cc60; }
+  .legend { color: var(--muted); font-size: 12px; display: flex; gap: 14px; margin: 6px 0; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  .muted { color: var(--muted); } .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .approvals { font-size: 12px; color: var(--muted); }
+  .approvals .done { color: var(--ok); } .approvals .rej { color: var(--bad); }
+  .jr { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; }
+  .jr-h { padding: 8px 10px; background: #fafbfc; border-bottom: 1px solid var(--line); display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+  .jr table td, .jr table th { border-bottom: none; }
+  .jr table { table-layout: fixed; min-width: 560px; }
+  .jr table th:nth-child(1) { width: 26%; } .jr table th:nth-child(2) { width: 38%; }
+  @media (max-width: 640px) { header, nav, main { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Grant P2P Control</h1>
+    <div class="sub">Horizon Relief (fictional NGO) · purchase requests against donor grants</div>
+  </div>
+  <div class="spacer"></div>
+  <label style="flex-direction:row;align-items:center;gap:8px">Acting as
+    <select id="role">
+      <option>Budget Holder</option><option>Grant Manager</option><option>Finance Manager</option><option>Country Director</option>
+    </select>
+  </label>
+  <button class="btn ghost" id="reset" title="Restore demo data">Reset demo</button>
+</header>
+
+<nav>
+  <button data-tab="requests" class="active">Purchase requests</button>
+  <button data-tab="budget">Grant budget vs actuals</button>
+  <button data-tab="journals">Accounting</button>
+  <button data-tab="rules">Business rules</button>
+</nav>
+
+<main>
+  <section class="tab active" id="tab-requests">
+    <h2>New purchase request</h2>
+    <form id="form" class="grid">
+      <label>Description<input name="description" required placeholder="e.g. Hygiene kits"></label>
+      <label>Grant / budget line<select name="budgetLineId" id="lineSel"></select></label>
+      <label>Cost centre<select name="costCentre" id="ccSel"></select></label>
+      <label>Amount (USD)<input name="amount" type="number" min="0" step="0.01" required></label>
+      <label>Request date<input name="date" type="date" required value="2026-11-10"></label>
+      <label>Quotes attached<input name="quotes" type="number" min="0" value="1"></label>
+      <label>Tender ref. (&gt; 25,000)<input name="tenderRef" placeholder="optional"></label>
+      <label style="justify-content:flex-end"><button class="btn" type="submit">Save and submit</button></label>
+    </form>
+    <div id="formMsg"></div>
+    <div id="funds" class="muted" style="font-size:12px;margin-top:6px"></div>
+
+    <h2>Requests</h2>
+    <div id="actionMsg"></div>
+    <div class="table-wrap"><table id="reqTable"></table></div>
+  </section>
+
+  <section class="tab" id="tab-budget">
+    <div id="budget"></div>
+  </section>
+
+  <section class="tab" id="tab-journals">
+    <p class="muted">Journals are generated by rules: <b>event → journal line rule → account derivation</b>
+      (the same pattern as an ERP subledger accounting engine). Encumbrance journals track commitments;
+      actual journals hit the general ledger.</p>
+    <div id="journals"></div>
+  </section>
+
+  <section class="tab" id="tab-rules">
+    <div id="rules"></div>
+  </section>
+</main>
+
+<script src="engine.js"></script>
+<script src="seed.js"></script>
+<script>
+(function () {
+  const KEY = 'grant-p2p-control-v1';
+  const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const today = () => document.querySelector('[name=date]').value || '2026-11-10';
+
+  let data;
+  function load() {
+    try { const s = localStorage.getItem(KEY); if (s) return JSON.parse(s); } catch (e) {}
+    return buildDemo(Engine, SEED);
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
+  data = load();
+
+  const lineLabel = (l) => { const g = data.grants.find((x) => x.id === l.grantId); return `${g.code} · ${l.code} ${l.description}`; };
+
+  // ---- tabs
+  document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach((x) => x.classList.toggle('active', x === b));
+    document.querySelectorAll('section.tab').forEach((s) => s.classList.toggle('active', s.id === 'tab-' + b.dataset.tab));
+  }));
+
+  // ---- form
+  const lineSel = document.getElementById('lineSel');
+  lineSel.innerHTML = data.budgetLines.map((l) => `<option value="${l.id}">${esc(lineLabel(l))}</option>`).join('');
+  document.getElementById('ccSel').innerHTML = data.costCentres.map((c) => `<option value="${c.code}">${c.code} · ${esc(c.name)}</option>`).join('');
+
+  function showFunds() {
+    const p = Engine.fundsPosition(data, lineSel.value);
+    document.getElementById('funds').textContent =
+      `Budget ${fmt(p.budget)} · pending ${fmt(p.pending)} · committed ${fmt(p.committed)} · actual ${fmt(p.actual)} · available ${fmt(p.available)}`;
+  }
+  lineSel.addEventListener('change', showFunds);
+
+  document.getElementById('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const id = 'PR-' + (1000 + data.requests.length + 1);
+    const req = {
+      id, description: f.get('description'), budgetLineId: f.get('budgetLineId'), costCentre: f.get('costCentre'),
+      amount: Number(f.get('amount')), date: f.get('date'), quotes: Number(f.get('quotes')), tenderRef: f.get('tenderRef'),
+      status: 'DRAFT', actualAmount: 0, approvals: [],
+    };
+    const { errors, warnings } = Engine.validateRequest(data, req);
+    const box = document.getElementById('formMsg');
+    if (errors.length) { box.innerHTML = errors.map((x) => `<div class="msg err">${esc(x)}</div>`).join(''); return; }
+    data.requests.push(req);
+    data = Engine.submit(data, id);
+    const chain = data.requests.find((r) => r.id === id).approvals.map((a) => a.role).join(' → ');
+    box.innerHTML = warnings.map((x) => `<div class="msg warn">${esc(x)}</div>`).join('') +
+      `<div class="msg ok">${id} submitted. Approval chain: ${esc(chain)}.</div>`;
+    e.target.reset(); document.querySelector('[name=date]').value = req.date;
+    save(); render();
+  });
+
+  // ---- actions
+  function act(fn) {
+    const box = document.getElementById('actionMsg');
+    try { data = fn(); box.innerHTML = ''; save(); render(); }
+    catch (err) { box.innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }
+  }
+  document.getElementById('reqTable').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const id = b.dataset.id, role = document.getElementById('role').value, d = today();
+    const r = data.requests.find((x) => x.id === id);
+    switch (b.dataset.act) {
+      case 'submit': return act(() => Engine.submit(data, id));
+      case 'approve': return act(() => Engine.approve(data, id, role, d));
+      case 'reject': { const why = prompt('Rejection reason'); if (why === null) return; return act(() => Engine.reject(data, id, role, why, d)); }
+      case 'receive': { const v = prompt('Received amount', r.amount); if (v === null) return; return act(() => Engine.receive(data, id, Number(v), d)); }
+      case 'invoice': return act(() => Engine.invoice(data, id, d));
+      case 'pay': return act(() => Engine.pay(data, id, d));
+    }
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    data = buildDemo(Engine, SEED); render();
+  });
+
+  // ---- render
+  function actionsFor(r) {
+    const B = (act, label, cls = 'btn ghost') => `<button class="${cls}" data-act="${act}" data-id="${r.id}">${label}</button>`;
+    switch (r.status) {
+      case 'DRAFT': return B('submit', 'Submit');
+      case 'SUBMITTED': {
+        const next = r.approvals.find((a) => a.status === 'PENDING');
+        return `<span class="muted" style="font-size:12px">Waiting: ${esc(next.role)}</span>` + B('approve', 'Approve', 'btn') + B('reject', 'Reject', 'btn danger');
+      }
+      case 'APPROVED': return B('receive', 'Record receipt');
+      case 'RECEIVED': return B('invoice', 'Match invoice');
+      case 'INVOICED': return B('pay', 'Pay');
+      default: return '';
+    }
+  }
+
+  function render() {
+    const rows = data.requests.slice().reverse().map((r) => {
+      const l = data.budgetLines.find((x) => x.id === r.budgetLineId);
+      const appr = r.approvals.map((a) =>
+        `<span class="${a.status === 'APPROVED' ? 'done' : a.status === 'REJECTED' ? 'rej' : ''}">${a.status === 'APPROVED' ? '✓' : a.status === 'REJECTED' ? '✗' : '○'} ${esc(a.role)}</span>`).join(' · ');
+      return `<tr>
+        <td class="mono">${r.id}</td>
+        <td>${esc(r.description)}<div class="approvals">${appr}</div></td>
+        <td>${esc(lineLabel(l))}<div class="muted" style="font-size:12px">${l.category} · ${r.costCentre}</div></td>
+        <td class="num">${fmt(r.amount)}</td>
+        <td class="num">${r.actualAmount ? fmt(r.actualAmount) : ''}</td>
+        <td><span class="chip s-${r.status}">${r.status}</span></td>
+        <td><div class="actions">${actionsFor(r)}</div></td></tr>`;
+    }).join('');
+    document.getElementById('reqTable').innerHTML =
+      `<tr><th>ID</th><th>Description / approvals</th><th>Budget line</th><th class="num">Amount</th><th class="num">Actual</th><th>Status</th><th>Next step</th></tr>${rows}`;
+
+    // budget
+    document.getElementById('budget').innerHTML = data.grants.map((g) => {
+      const rep = Engine.grantReport(data, g.id);
+      const tot = rep.reduce((t, x) => ({ budget: t.budget + x.budget, pending: t.pending + x.pending, committed: t.committed + x.committed, actual: t.actual + x.actual, available: t.available + x.available }), { budget: 0, pending: 0, committed: 0, actual: 0, available: 0 });
+      const bar = (x) => { const w = (v) => x.budget ? Math.min(100, v / x.budget * 100) : 0; return `<div class="bar"><span class="b-act" style="width:${w(x.actual)}%"></span><span class="b-com" style="width:${w(x.committed)}%"></span><span class="b-pen" style="width:${w(x.pending)}%"></span></div>`; };
+      const tr = (x, strong) => `<tr${strong ? ' style="font-weight:600"' : ''}><td>${x.line ?? ''}</td><td>${esc(x.description ?? 'Total')}${x.category && !g.eligibleCategories.includes(x.category) ? ' <span class="chip s-REJECTED">ineligible</span>' : ''}</td><td class="num">${fmt(x.budget)}</td><td class="num">${fmt(x.actual)}</td><td class="num">${fmt(x.committed)}</td><td class="num">${fmt(x.pending)}</td><td class="num">${fmt(x.available)}</td><td>${bar(x)}</td></tr>`;
+      return `<h2>${g.code} · ${esc(g.name)} <span class="muted" style="font-weight:400">— ${esc(g.donor)}, ${g.startDate} to ${g.endDate}</span></h2>
+        <div class="table-wrap"><table><tr><th>Line</th><th>Description</th><th class="num">Budget</th><th class="num">Actual</th><th class="num">Committed</th><th class="num">Pending</th><th class="num">Available</th><th>Use</th></tr>
+        ${rep.map((x) => tr(x)).join('')}${tr(tot, true)}</table></div>`;
+    }).join('') + `<div class="legend"><span><i class="b-act"></i>Actual</span><span><i class="b-com"></i>Committed (approved, not received)</span><span><i class="b-pen"></i>Pending approval</span></div>`;
+
+    // journals
+    const js = data.journals.slice().reverse();
+    document.getElementById('journals').innerHTML = js.length ? js.map((j) => `<div class="jr">
+      <div class="jr-h"><b class="mono">${j.requestId}</b><span>${esc(j.event)}</span><span class="chip">${j.journalType}</span><span class="muted">${j.date}</span><span class="muted">${Engine.isBalanced(j) ? 'balanced' : 'NOT BALANCED'}</span></div>
+      <div class="table-wrap"><table><tr><th>Accounting class</th><th>Account (Entity-Account-Fund-Line-CC)</th><th class="num">Debit</th><th class="num">Credit</th></tr>
+      ${j.lines.map((l) => `<tr><td>${l.accountingClass}</td><td class="mono">${l.account}</td><td class="num">${l.side === 'Dr' ? fmt(l.amount) : ''}</td><td class="num">${l.side === 'Cr' ? fmt(l.amount) : ''}</td></tr>`).join('')}
+      </table></div></div>`).join('') : '<p class="muted">No journals yet.</p>';
+
+    // rules
+    const C = Engine.config;
+    document.getElementById('rules').innerHTML = `
+      <h2>Approval chain</h2>
+      <table><tr><th>Role</th><th class="num">From amount</th></tr>${C.APPROVAL_LEVELS.map((l) => `<tr><td>${l.role}</td><td class="num">${fmt(l.minAmount)}</td></tr>`).join('')}
+      <tr><td>Grant Manager</td><td class="num">when line &gt; ${C.GRANT_MANAGER_UTILISATION * 100}% used</td></tr></table>
+      <h2>Donor procurement thresholds</h2>
+      <table><tr><th>From amount</th><th>Method</th></tr>${C.PROCUREMENT_THRESHOLDS.map((t) => `<tr><td>${fmt(t.minAmount)}</td><td>${t.method}</td></tr>`).join('')}</table>
+      <h2>Account mapping set — cost category → natural account</h2>
+      <table><tr><th>Category</th><th>Account</th></tr>${Object.entries(C.EXPENSE_ACCOUNT_BY_CATEGORY).map(([k, v]) => `<tr><td>${k}</td><td class="mono">${v}</td></tr>`).join('')}</table>
+      <h2>Journal line rules</h2>
+      <table><tr><th>Event</th><th>Journal type</th><th>Lines</th></tr>${Object.entries(C.JOURNAL_LINE_RULES).map(([k, r]) => `<tr><td>${k}</td><td>${r.journalType}</td><td>${r.lines.map((l) => `${l.side} ${l.accountingClass}`).join(' / ')}${r.relieveEncumbrance ? ' + encumbrance relief' : ''}</td></tr>`).join('')}</table>
+      <p class="muted">Receipt tolerance: ${C.RECEIPT_TOLERANCE * 100}% over the approved amount.</p>`;
+    showFunds();
+  }
+  render();
+})();
+</script>
+</body>
+</html>
